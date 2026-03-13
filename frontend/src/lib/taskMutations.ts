@@ -30,7 +30,6 @@ export async function logActivity(
 
     await db.activities.add(activity);
 
-    // Dispatch a custom event so the React UndoProvider can catch it
     window.dispatchEvent(new CustomEvent('activityLogged', { detail: activity }));
 }
 

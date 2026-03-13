@@ -1,4 +1,4 @@
-import { Task } from './task.models';
+import { Task } from '../../../task/task.models';
 
 export async function detectCycle(
     taskId: string,

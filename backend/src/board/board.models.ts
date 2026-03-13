@@ -34,7 +34,7 @@ const boardMemberSchema = new Schema<IBoardMember>(
   { timestamps: true }
 );
 
-// Compound index to ensure a user is only active in a board once
+
 boardMemberSchema.index({ boardId: 1, userId: 1 }, { unique: true });
 
 export const BoardMember = model<IBoardMember>('BoardMember', boardMemberSchema);

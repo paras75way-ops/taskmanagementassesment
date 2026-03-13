@@ -12,8 +12,8 @@ import {
 import BoardSelector from "../components/board/BoardSelector";
 
 const COLORS = {
-    pending: "#6366f1",
-    complete: "#22c55e",
+    pending: "rgb(99, 102, 241)", // indigo-500
+    complete: "rgb(34, 197, 94)", // green-500
 };
 
 export default function Analytics() {
@@ -65,7 +65,7 @@ export default function Analytics() {
                         className="w-48"
                     />
                     {selectedBoardId !== "all" && (
-                        <button 
+                        <button
                             onClick={() => setSelectedBoardId("all")}
                             className="text-xs text-indigo-600 hover:text-indigo-800"
                         >
@@ -100,12 +100,12 @@ export default function Analytics() {
                                 </Pie>
                                 <Tooltip
                                     contentStyle={{
-                                        borderRadius: '8px',
+                                        borderRadius: '0.5rem',
                                         border: 'none',
-                                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-                                        backgroundColor: 'var(--color-bg-white, #fff)',
+                                        boxShadow: 'var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)',
+                                        backgroundColor: 'var(--color-bg-white, rgb(255, 255, 255))',
                                     }}
-                                    itemStyle={{ color: '#111827', fontWeight: 500 }}
+                                    itemStyle={{ color: 'rgb(17, 24, 39)', fontWeight: 500 }}
                                 />
                                 <Legend
                                     verticalAlign="bottom"

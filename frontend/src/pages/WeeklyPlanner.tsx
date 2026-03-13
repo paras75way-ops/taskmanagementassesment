@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
     DndContext,
     DragOverlay,
@@ -21,12 +21,45 @@ import ConflictHandling from "../components/kanban/ConflictHandling";
 import { useTheme } from "../hooks/useTheme";
 import type { LocalTask } from "../types/task";
 import { queueTaskUpdate } from "../lib/taskMutations";
+import { MoonIcon, SunIcon, PlusIcon } from "../assets/icons";
 
 interface WeeklyPlannerProps {
     boardId: string;
 }
 
-export default function WeeklyPlanner({ boardId }: WeeklyPlannerProps) {
+export default function WeeklyPlanner() {
+    const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
+    const firstBoard = useLiveQuery(() => db.boards.where("syncStatus").notEqual("deleted").first());
+
+    useEffect(() => {
+        if (!activeBoardId && firstBoard) {
+            setActiveBoardId(firstBoard._id);
+        }
+    }, [firstBoard, activeBoardId]);
+
+    const currentBoardIsValid = useLiveQuery(
+        () => activeBoardId ? db.boards.get(activeBoardId).then(b => !!b && b.syncStatus !== "deleted") : Promise.resolve(false),
+        [activeBoardId]
+    );
+
+    useEffect(() => {
+        if (activeBoardId && currentBoardIsValid === false && firstBoard) {
+            setActiveBoardId(firstBoard._id);
+        }
+    }, [currentBoardIsValid, activeBoardId, firstBoard]);
+
+    if (!activeBoardId) {
+        return (
+            <div className="h-full flex items-center justify-center text-gray-500">
+                <p className="text-lg">You don't have any boards yet. Create one in the Dashboard.</p>
+            </div>
+        );
+    }
+
+    return <WeeklyPlannerContent boardId={activeBoardId} />;
+}
+
+function WeeklyPlannerContent({ boardId }: WeeklyPlannerProps) {
     const { theme, toggleTheme } = useTheme();
 
     const tasks = useLiveQuery(
@@ -39,7 +72,7 @@ export default function WeeklyPlanner({ boardId }: WeeklyPlannerProps) {
 
     const weekDays = useMemo(() => {
         const today = new Date();
-        const start = startOfWeek(today, { weekStartsOn: 1 }); // Start on Monday
+        const start = startOfWeek(today, { weekStartsOn: 1 });
         return Array.from({ length: 7 }).map((_, i) => format(addDays(start, i), 'yyyy-MM-dd'));
     }, []);
 
@@ -176,13 +209,9 @@ export default function WeeklyPlanner({ boardId }: WeeklyPlannerProps) {
                         title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
                     >
                         {theme === 'light' ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                            </svg>
+                            <MoonIcon className="h-5 w-5" />
                         ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
+                            <SunIcon className="h-5 w-5" />
                         )}
                     </button>
                 </div>
@@ -192,9 +221,7 @@ export default function WeeklyPlanner({ boardId }: WeeklyPlannerProps) {
                      bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm
                      hover:shadow-md transition-all duration-200"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
+                    <PlusIcon className="w-4 h-4" />
                     Add Task
                 </button>
             </div>
@@ -207,14 +234,14 @@ export default function WeeklyPlanner({ boardId }: WeeklyPlannerProps) {
                 onDragEnd={handleDragEnd}
             >
                 <div className="flex-1 flex flex-col gap-6 overflow-y-auto pb-6 pr-2">
-                   
+
                     <DayRow
                         id="backlog"
                         title="Backlog"
                         tasks={tasksByColumn.backlog}
                     />
 
-                   
+
                     {weekDays.map((dateString) => {
                         const dateObj = parseISO(dateString);
                         const isToday = format(new Date(), 'yyyy-MM-dd') === dateString;

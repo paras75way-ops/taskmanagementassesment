@@ -46,7 +46,7 @@ export const BoardController = {
     res.json({ message: "Board and all its tasks deleted" });
   }),
 
-  // --- Member Endpoints ---
+  //Member endpoints 
   getMembers: asyncHandler(async (req: Request, res: Response) => {
     const boardId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const members = await BoardService.getMembers(boardId);
@@ -85,8 +85,7 @@ export const BoardController = {
 
     if (!targetUserId) throw new AppError("User ID is required", 400);
 
-    // Prevent removing the last admin (optional but good practice)
-    const members = await BoardService.getMembers(boardId);
+        const members = await BoardService.getMembers(boardId);
     const memberToRemove = members.find(m => m.userId === targetUserId);
 
     if (!memberToRemove) throw new AppError("User is not a member of this board", 404);

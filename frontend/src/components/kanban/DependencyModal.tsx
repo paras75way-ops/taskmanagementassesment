@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../../lib/db";
 import { queueAddDependency, queueRemoveDependency, detectCycleFrontend } from "../../lib/taskMutations";
 import type { LocalTask } from "../../types/task";
+import { XIcon, XCircleIcon } from "../../assets/icons";
 
 interface DependencyModalProps {
     isOpen: boolean;
@@ -59,16 +60,16 @@ export default function DependencyModal({ isOpen, onClose, task }: DependencyMod
 
             await queueAddDependency(task._id, newBlockerId);
             setSelectedBlocker(null);
-        } catch (err: any) {
-            setError(err.message || "Failed to add dependency");
+        } catch (err: unknown) {
+            setError((err as Error).message || "Failed to add dependency");
         }
     };
 
     const handleRemoveDependency = async (blockerId: string) => {
         try {
             await queueRemoveDependency(task._id, blockerId);
-        } catch (err: any) {
-            setError(err.message || "Failed to remove dependency");
+        } catch (err: unknown) {
+            setError((err as Error).message || "Failed to remove dependency");
         }
     };
 
@@ -81,9 +82,7 @@ export default function DependencyModal({ isOpen, onClose, task }: DependencyMod
                         onClick={onClose}
                         className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition"
                     >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <XIcon className="w-5 h-5" />
                     </button>
                 </div>
 
@@ -106,9 +105,7 @@ export default function DependencyModal({ isOpen, onClose, task }: DependencyMod
                                             className="text-red-500 hover:text-red-700 p-1 rounded-md transition"
                                             title="Remove dependency"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                            </svg>
+                                            <XCircleIcon className="w-4 h-4" />
                                         </button>
                                     </li>
                                 ))}
@@ -124,7 +121,7 @@ export default function DependencyModal({ isOpen, onClose, task }: DependencyMod
                             <div className="flex-1 text-gray-900">
                                 <Select
                                     value={selectedBlocker}
-                                    onChange={(newValue) => setSelectedBlocker(newValue as any)}
+                                    onChange={(newValue) => setSelectedBlocker(newValue as { value: string; label: string } | null)}
                                     options={options}
                                     placeholder="Search tasks..."
                                     className="text-sm"
@@ -137,7 +134,7 @@ export default function DependencyModal({ isOpen, onClose, task }: DependencyMod
                                         control: base => ({
                                             ...base,
                                             backgroundColor: 'transparent',
-                                            borderColor: '#4f46e5', // indigo-600
+                                            borderColor: 'currentColor',
                                             color: 'currentColor',
                                         }),
                                         singleValue: base => ({
@@ -150,16 +147,16 @@ export default function DependencyModal({ isOpen, onClose, task }: DependencyMod
                                         }),
                                         menu: base => ({
                                             ...base,
-                                            backgroundColor: '#1f2937', // gray-800
-                                            border: '1px solid #374151', // gray-700
+                                            backgroundColor: 'rgb(31, 41, 55)',
+                                            border: '1px solid rgb(55, 65, 81)',
                                         }),
                                         option: (base, state) => ({
                                             ...base,
-                                            backgroundColor: state.isFocused ? '#374151' : 'transparent', // gray-700 on hover
-                                            color: '#f3f4f6', // gray-100 text
+                                            backgroundColor: state.isFocused ? 'rgb(55, 65, 81)' : 'transparent',
+                                            color: 'rgb(243, 244, 246)',
                                             cursor: 'pointer',
                                             '&:active': {
-                                                backgroundColor: '#4b5563', // gray-600
+                                                backgroundColor: 'rgb(75, 85, 99)',
                                             }
                                         }),
                                     }}

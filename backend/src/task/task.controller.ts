@@ -5,7 +5,7 @@ import { AuthRequest } from "../common/middleware/auth.middleware";
 import { TaskInput } from "./task.types";
 import { asyncHandler } from "../common/utils/asyncHandler";
 import { AppError } from "../common/utils/AppError";
-import { detectCycle } from "./dependency.utils";
+import { detectCycle } from "../common/utils/blockdependency/dependency.utils";
 
 export const TaskController = {
   getTasks: asyncHandler(async (req: Request, res: Response) => {
@@ -25,7 +25,7 @@ export const TaskController = {
 
     const body = req.body as TaskInput;
 
-    // Validate board exists and belongs to user
+  
     const board = await BoardService.findById(body.boardId, userId);
     if (!board) throw new AppError("Board not found", 404);
 

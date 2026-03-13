@@ -1,10 +1,10 @@
 
 import { Board, BoardMember } from './board.models';
 import type { IBoard, IBoardMember } from './board.models';
-import type { BoardInput } from './board.types';
+import type { BoardInput, BoardResponse } from './board.types';
 
 export const BoardService = {
-  async findByUserId(userId: string): Promise<any[]> {
+  async findByUserId(userId: string): Promise<BoardResponse[]> {
     const memberships = await BoardMember.find({ userId }).exec();
     const boardIds = memberships.map(m => m.boardId);
 
@@ -14,45 +14,63 @@ export const BoardService = {
     return boards.map(board => {
       const membership = memberships.find(m => m.boardId === board._id.toString());
       return {
-        ...board,
+        _id: board._id,
+        name: board.name,
+        userId: board.userId,
+        createdAt: board.createdAt,
+        updatedAt: board.updatedAt,
         myRole: membership?.role || 'member'
       };
     });
   },
 
-  async findById(boardId: string, userId: string): Promise<any | null> {
+  async findById(boardId: string, userId: string): Promise<BoardResponse | null> {
     const membership = await BoardMember.findOne({ boardId, userId }).exec();
     if (!membership) return null;
 
     const board = await Board.findById(boardId).lean().exec();
     if (!board) return null;
 
-    return { ...board, myRole: membership.role };
+    return {
+      _id: board._id,
+      name: board.name,
+      userId: board.userId,
+      createdAt: board.createdAt,
+      updatedAt: board.updatedAt,
+      myRole: membership.role
+    };
   },
 
-  async create(userId: string, input: BoardInput): Promise<any> {
+  async create(userId: string, input: BoardInput): Promise<BoardResponse> {
     const board = await Board.create({ ...input, userId });
 
-    // Automatically add the creator as an admin
+     
     await BoardMember.create({
       boardId: board._id.toString(),
       userId: userId,
       role: 'admin'
     });
 
-    return { ...board.toObject(), myRole: 'admin' };
+    return {
+      _id: board._id,
+      name: board.name,
+      userId: board.userId,
+      createdAt: board.createdAt,
+      updatedAt: board.updatedAt,
+      myRole: 'admin'
+    };
   },
 
   async updateOne(
     boardId: string,
     input: Partial<BoardInput>
   ): Promise<IBoard | null> {
-    // Permission check is handled by middleware
+     
     return Board.findOneAndUpdate({ _id: boardId }, input, { returnDocument: "after" }).lean().exec();
   },
 
   async deleteOne(boardId: string): Promise<IBoard | null> {
-    // Permission check handled by middleware
+    
     const board = await Board.findOneAndDelete({ _id: boardId }).exec();
     if (board) {
       await BoardMember.deleteMany({ boardId }).exec();
@@ -60,10 +78,10 @@ export const BoardService = {
     return board;
   },
 
-  // --- Member Management ---
+   
   async getMembers(boardId: string) {
     const members = await BoardMember.find({ boardId }).lean().exec();
-    // Ideally we would populate or aggregate user details (name, email)
+    
     return members;
   },
 

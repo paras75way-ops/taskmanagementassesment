@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { LockIcon, CloudIcon, ChartBarIcon } from "../assets/icons";
 
 export default function Home() {
     return (
@@ -39,9 +40,7 @@ export default function Home() {
                             <div className="-mt-6">
                                 <div>
                                     <span className="inline-flex items-center justify-center p-3 bg-indigo-500 rounded-md shadow-lg">
-                                        <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                        </svg>
+                                        <CloudIcon className="h-6 w-6 text-white" />
                                     </span>
                                 </div>
                                 <h3 className="mt-8 text-lg font-medium text-gray-100 tracking-tight">Offline First</h3>
@@ -58,9 +57,7 @@ export default function Home() {
                             <div className="-mt-6">
                                 <div>
                                     <span className="inline-flex items-center justify-center p-3 bg-indigo-500 rounded-md shadow-lg">
-                                        <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                        </svg>
+                                        <ChartBarIcon className="h-6 w-6 text-white" />
                                     </span>
                                 </div>
                                 <h3 className="mt-8 text-lg font-medium text-gray-100 tracking-tight">Analytics</h3>
@@ -77,9 +74,7 @@ export default function Home() {
                             <div className="-mt-6">
                                 <div>
                                     <span className="inline-flex items-center justify-center p-3 bg-indigo-500 rounded-md shadow-lg">
-                                        <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                        </svg>
+                                        <LockIcon className="h-6 w-6 text-white" />
                                     </span>
                                 </div>
                                 <h3 className="mt-8 text-lg font-medium text-gray-100 tracking-tight">Secure</h3>

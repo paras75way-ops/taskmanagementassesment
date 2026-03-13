@@ -33,18 +33,15 @@ export default function CreateTaskModal({
         e.preventDefault();
         setError(null);
 
-        // Validate using Zod schema
         const validation = taskSchema.safeParse({ title: title.trim(), description: description.trim() || undefined });
 
         if (!validation.success) {
-            // Pick the first error to display
             setError(validation.error.message);
             return;
         }
 
         const validData = validation.data;
 
-        // Generate a temporary offline ID
         const tempId = crypto.randomUUID();
         const nextPosition = tasksCount ?? 0;
 
@@ -55,18 +52,16 @@ export default function CreateTaskModal({
             position: nextPosition,
         };
 
-        // 1. Insert locally
         await db.tasks.add({
             ...payload,
             _id: tempId,
             boardId,
-            userId: "local", // Will be overridden by backend upon sync
+            userId: "local",
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             syncStatus: "created",
         });
 
-        // 2. Queue mutation
         await db.mutations.add({
             action: "create",
             taskId: tempId,
@@ -74,7 +69,6 @@ export default function CreateTaskModal({
             timestamp: Date.now(),
         });
 
-        // Try sync immediately if online
         if (navigator.onLine) {
             processMutations();
         }

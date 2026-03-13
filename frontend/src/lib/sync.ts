@@ -3,7 +3,7 @@ import { store } from "../store";
 import { taskApi } from "../store/api/taskApi";
 import { boardApi } from "../store/api/boardApi";
 import { activityApi } from "../store/api/activityApi";
-import type { ITask, CreateTaskInput } from "../types/task";
+import type { ITask, CreateTaskInput, ActivityAction, ActivityRecord } from "../types/task";
 import type { IBoard, CreateBoardInput, UpdateBoardInput, IBoardMember } from "../types/board";
 
 function isMongoId(id: string): boolean {
@@ -14,7 +14,6 @@ export async function pullData() {
   if (!navigator.onLine) return;
 
   try {
-    // 1. Pull and reconcile Boards
     const boardResult = await store.dispatch(
       boardApi.endpoints.getBoards.initiate(undefined, { forceRefetch: true })
     );
@@ -44,7 +43,7 @@ export async function pullData() {
 
           boardTransactions.push(
             db.conflicts.add({
-              taskId: serverBoard._id, // Repurposing taskId for boardId in conflicts for now
+              taskId: serverBoard._id,
               taskTitle: serverBoard.name,
               resolvedAt: Date.now(),
               message: `Local changes to board "${serverBoard.name}" were overwritten by a newer version from the server.`,
@@ -63,7 +62,6 @@ export async function pullData() {
       if (!serverBoardIds.has(localBoard._id) && localBoard.syncStatus === "synced") {
         boardTransactions.push(db.boards.delete(localBoard._id));
         boardTransactions.push(db.boardMembers.where("boardId").equals(localBoard._id).delete());
-        // Also queue delete for tasks associated with this board, as the user might have been removed
         const localTasksInBoard = await db.tasks.where("boardId").equals(localBoard._id).toArray();
         for (const task of localTasksInBoard) {
           boardTransactions.push(db.tasks.delete(task._id));
@@ -74,7 +72,6 @@ export async function pullData() {
 
     await Promise.all(boardTransactions);
 
-    // 1.5 Pull and reconcile Board Members
     const memberTransactions: Promise<unknown>[] = [];
     const serverMembersMap = new Map<string, IBoardMember[]>();
     for (const board of serverBoards) {
@@ -83,7 +80,6 @@ export async function pullData() {
       );
       if (!memberResult.isError && memberResult.data) {
         serverMembersMap.set(board._id, memberResult.data);
-        // Clear existing members locally for this board to stay strictly synced
         await db.boardMembers.where("boardId").equals(board._id).delete();
 
         for (const serverMember of memberResult.data) {
@@ -93,13 +89,11 @@ export async function pullData() {
     }
     await Promise.all(memberTransactions);
 
-    // 2. Pull and reconcile Tasks
     const localTasks = await db.tasks.toArray();
     const taskTransactions: Promise<unknown>[] = [];
     const localTasksMap = new Map(localTasks.map((t) => [t._id, t]));
     const serverTaskIds = new Set<string>();
 
-    // Fetch tasks for each synchronized board
     for (const board of serverBoards) {
       const taskResult = await store.dispatch(
         taskApi.endpoints.getTasks.initiate(board._id, { forceRefetch: true })
@@ -180,7 +174,7 @@ export async function pullData() {
               boardId: serverAct.boardId,
               taskId: serverAct.taskId,
               taskTitle: serverAct.taskTitle,
-              action: serverAct.action as any,
+              action: serverAct.action as ActivityAction,
               description: serverAct.description,
               snapshot: serverAct.snapshot,
               userId: serverAct.userId,
@@ -205,7 +199,6 @@ export async function processMutations() {
 
   isProcessingMutations = true;
   try {
-    // 1. Process Board Mutations
     const boardMutations = await db.boardMutations.orderBy("timestamp").toArray();
     const boardIdSwaps: Record<string, string> = {};
 
@@ -240,14 +233,13 @@ export async function processMutations() {
             await db.boardMutations.update(fm.id!, { boardId: result._id });
           }
 
-          // Important: also update any task mutations that reference this temp board ID
           const taskMutationsWithTempBoard = await db.mutations.toArray();
           for (const tm of taskMutationsWithTempBoard) {
-            if (tm.action === "create" && tm.payload && (tm.payload as any).boardId === tempId) {
+            if (tm.action === "create" && tm.payload && (tm.payload as { boardId?: string }).boardId === tempId) {
               const newPayload = { ...tm.payload, boardId: result._id };
               await db.mutations.update(tm.id!, { payload: newPayload });
             }
-            if (tm.action === "update" && tm.payload && (tm.payload as any).boardId === tempId) {
+            if (tm.action === "update" && tm.payload && (tm.payload as { boardId?: string }).boardId === tempId) {
               const newPayload = { ...tm.payload, boardId: result._id };
               await db.mutations.update(tm.id!, { payload: newPayload });
             }
@@ -261,7 +253,6 @@ export async function processMutations() {
           await store.dispatch(boardApi.endpoints.updateBoard.initiate({ id: mutation.boardId, body: payload })).unwrap();
           await db.boards.update(mutation.boardId, { syncStatus: "synced" });
         } else if (mutation.action === "delete") {
-          // Basic logic for delete
           if (!isMongoId(mutation.boardId)) {
             await db.boards.delete(mutation.boardId);
           } else {
@@ -277,12 +268,11 @@ export async function processMutations() {
         await db.boardMutations.delete(mutation.id!);
       } catch (err) {
         console.error(`Failed to process board mutation: ${mutation.action}`, err);
-        break; // stop processing if one fails
+        break;
       }
     }
 
 
-    // 2. Process Task Mutations
     const taskMutations = await db.mutations.orderBy("timestamp").toArray();
     const taskIdSwaps: Record<string, string> = {};
 
@@ -292,16 +282,13 @@ export async function processMutations() {
           mutation.taskId = taskIdSwaps[mutation.taskId];
         }
 
-        // Before applying create/update, verify target board exists
         if ((mutation.action === "create" || mutation.action === "update") && mutation.payload) {
-          const payloadBoardId = (mutation.payload as any).boardId;
+          const payloadBoardId = (mutation.payload as { boardId?: string })?.boardId;
           if (payloadBoardId) {
             const actualBoardId = boardIdSwaps[payloadBoardId] || payloadBoardId;
             const targetBoard = await db.boards.get(actualBoardId);
 
-            // If board doesn't exist anymore or it's scheduled for deletion 
             if (!targetBoard || targetBoard.syncStatus === "deleted") {
-              // Find fallback board
               const fallbackBoard = await db.boards.where("syncStatus").notEqual("deleted").first();
 
               if (fallbackBoard) {
@@ -313,7 +300,6 @@ export async function processMutations() {
                   message: `The target board for a task was deleted. The task was moved to "${fallbackBoard.name}".`
                 });
               } else {
-                // No boards left, skip this task mutation and delete the local task
                 await db.tasks.delete(mutation.taskId);
                 await db.mutations.delete(mutation.id!);
                 continue;
@@ -356,7 +342,7 @@ export async function processMutations() {
           if (!payload) continue;
 
           const localTask = await db.tasks.get(mutation.taskId);
-          const boardId = localTask ? localTask.boardId : (payload as any).boardId;
+          const boardId = localTask ? localTask.boardId : (payload as { boardId?: string })?.boardId;
 
           if (!boardId) {
             console.warn("Could not determine boardId for task update", mutation.taskId);
@@ -388,7 +374,6 @@ export async function processMutations() {
             }
             await db.tasks.delete(taskId);
           } else {
-            // Fallback if we can't find the boardId but need to delete
             await db.tasks.delete(taskId);
           }
         }
@@ -406,7 +391,7 @@ export async function processMutations() {
     for (const activity of pendingActivities) {
       try {
         const { id: _localId, syncStatus: _s, ...payload } = activity;
-        await store.dispatch(activityApi.endpoints.createActivity.initiate(payload as any)).unwrap();
+        await store.dispatch(activityApi.endpoints.createActivity.initiate(payload as Omit<ActivityRecord, 'id' | '_id' | 'syncStatus'>)).unwrap();
         if (activity.id) {
           await db.activities.update(activity.id, { syncStatus: "synced" });
         }

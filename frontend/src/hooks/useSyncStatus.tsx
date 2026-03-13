@@ -27,7 +27,6 @@ export function useSyncStatus() {
         window.addEventListener("online", handleOnline);
         window.addEventListener("offline", handleOffline);
 
-        // Initial check in case we mounted while offline
         if (!navigator.onLine) {
             setIsOnline(false);
         }
@@ -38,7 +37,6 @@ export function useSyncStatus() {
         };
     }, [handleOnline, handleOffline]);
 
-    // Expose manual sync trigger
     const triggerSync = async () => {
         if (!isOnline) return;
         setIsSyncing(true);

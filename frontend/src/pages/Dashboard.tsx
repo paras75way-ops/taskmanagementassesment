@@ -11,14 +11,12 @@ export default function Dashboard() {
 
     const firstBoard = useLiveQuery(() => db.boards.where("syncStatus").notEqual("deleted").first());
 
-    // Auto-select first board if none selected
     useEffect(() => {
         if (!activeBoardId && firstBoard) {
             setActiveBoardId(firstBoard._id);
         }
     }, [firstBoard, activeBoardId]);
 
-    // Make sure activeBoardId is valid
     const currentBoardIsValid = useLiveQuery(
         () => activeBoardId ? db.boards.get(activeBoardId).then(b => !!b && b.syncStatus !== "deleted") : Promise.resolve(false),
         [activeBoardId]

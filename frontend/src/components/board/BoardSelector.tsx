@@ -30,18 +30,18 @@ export default function BoardSelector({ value, onChange, className, placeholder 
                     control: (base) => ({
                         ...base,
                         borderRadius: "0.5rem",
-                        borderColor: "#d1d5db",
+                        borderColor: "rgb(209, 213, 219)",
                         boxShadow: "none",
                         "&:hover": {
-                            borderColor: "#9ca3af",
+                            borderColor: "rgb(156, 163, 175)",
                         },
                     }),
                     option: (base, state) => ({
                         ...base,
-                        backgroundColor: state.isSelected ? "#4f46e5" : state.isFocused ? "#e0e7ff" : "white",
-                        color: state.isSelected ? "white" : "#111827",
+                        backgroundColor: state.isSelected ? "rgb(79, 70, 229)" : state.isFocused ? "rgb(224, 231, 255)" : "white",
+                        color: state.isSelected ? "white" : "rgb(17, 24, 39)",
                         "&:active": {
-                            backgroundColor: "#4f46e5",
+                            backgroundColor: "rgb(79, 70, 229)",
                         },
                     }),
                 }}

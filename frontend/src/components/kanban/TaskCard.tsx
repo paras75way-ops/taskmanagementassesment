@@ -9,6 +9,14 @@ import MoveToBoardModal from "../board/MoveToBoardModal";
 import DependencyModal from "./DependencyModal";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../../lib/db";
+import {
+    CheckCircleIcon,
+    ShieldIcon,
+    DependencyIcon,
+    MoveIcon,
+    EditIcon,
+    DeleteIcon
+} from "../../assets/icons";
 
 function formatTimeAgo(dateString: string): string {
     const date = new Date(dateString);
@@ -184,9 +192,7 @@ export default function TaskCard({ task }: TaskCardProps) {
                     <>
                         <div className="flex items-start gap-2 pr-6">
                             {task.status === "done" && (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                </svg>
+                                <CheckCircleIcon className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
                             )}
                             {task.status === "inprogress" && (
                                 <div className="w-2 h-2 mt-1.5 rounded-full bg-blue-500 flex-shrink-0 animate-pulse"></div>
@@ -201,9 +207,7 @@ export default function TaskCard({ task }: TaskCardProps) {
 
                         {isBlocked && (
                             <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 w-fit px-1.5 py-0.5 rounded border border-red-200 dark:border-red-800">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                                </svg>
+                                <ShieldIcon className="w-3 h-3" />
                                 Blocked
                             </div>
                         )}
@@ -229,9 +233,7 @@ export default function TaskCard({ task }: TaskCardProps) {
                                 className={`p-1 rounded-md transition ${task.blockedBy?.length ? 'text-indigo-500 dark:text-indigo-400' : 'text-gray-400 hover:text-indigo-500'} hover:bg-gray-100 dark:hover:bg-gray-700`}
                                 title="Dependencies"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                </svg>
+                                <DependencyIcon className="w-3.5 h-3.5" />
                             </button>
                             <button
                                 onClick={(e) => {
@@ -241,9 +243,7 @@ export default function TaskCard({ task }: TaskCardProps) {
                                 className="p-1 rounded-md text-gray-400 hover:text-indigo-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                                 title="Move to Board"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                                </svg>
+                                <MoveIcon className="w-3.5 h-3.5" />
                             </button>
                             <button
                                 onClick={(e) => {
@@ -253,9 +253,7 @@ export default function TaskCard({ task }: TaskCardProps) {
                                 className="p-1 rounded-md text-gray-400 hover:text-indigo-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                                 title="Edit"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                </svg>
+                                <EditIcon className="w-3.5 h-3.5" />
                             </button>
                             <button
                                 onClick={(e) => {
@@ -265,9 +263,7 @@ export default function TaskCard({ task }: TaskCardProps) {
                                 className="p-1 rounded-md text-gray-400 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                                 title="Delete"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                </svg>
+                                <DeleteIcon className="w-3.5 h-3.5" />
                             </button>
                         </div>
                     </>
