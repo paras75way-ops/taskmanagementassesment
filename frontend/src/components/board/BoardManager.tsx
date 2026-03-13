@@ -7,6 +7,7 @@ import { triggerSyncIfOnline } from "../../lib/taskMutations";
 import { useState } from "react";
 import ShareBoardModal from "./ShareBoardModal";
 import { XIcon, CreateActivityIcon, EditIcon, DeleteIcon } from "../../assets/icons";
+import toast from "react-hot-toast";
 
 interface BoardManagerProps {
     isOpen: boolean;
@@ -42,6 +43,7 @@ export default function BoardManager({ isOpen, onClose, activeBoardId, onBoardSe
 
     const onCreate = async (data: BoardFormData) => {
         const tempId = `temp_board_${Date.now()}`;
+
         await db.transaction("rw", db.boards, db.boardMutations, async () => {
             await db.boards.put({
                 _id: tempId,
@@ -51,6 +53,7 @@ export default function BoardManager({ isOpen, onClose, activeBoardId, onBoardSe
                 updatedAt: new Date().toISOString(),
                 syncStatus: "created",
             });
+
             await db.boardMutations.add({
                 action: "create",
                 boardId: tempId,
@@ -58,6 +61,7 @@ export default function BoardManager({ isOpen, onClose, activeBoardId, onBoardSe
                 timestamp: Date.now(),
             });
         });
+
         triggerSyncIfOnline();
         onBoardSelect(tempId);
         reset();
@@ -66,6 +70,7 @@ export default function BoardManager({ isOpen, onClose, activeBoardId, onBoardSe
     const onUpdate = async (boardId: string, data: BoardFormData) => {
         await db.transaction("rw", db.boards, db.boardMutations, async () => {
             const board = await db.boards.get(boardId);
+
             if (board) {
                 await db.boards.update(boardId, {
                     name: data.name,
@@ -73,6 +78,7 @@ export default function BoardManager({ isOpen, onClose, activeBoardId, onBoardSe
                     updatedAt: new Date().toISOString(),
                 });
             }
+
             await db.boardMutations.add({
                 action: "update",
                 boardId,
@@ -80,35 +86,77 @@ export default function BoardManager({ isOpen, onClose, activeBoardId, onBoardSe
                 timestamp: Date.now(),
             });
         });
+
         triggerSyncIfOnline();
         setEditingId(null);
     };
 
-    const onDelete = async (boardId: string) => {
-        if (!confirm("Are you sure? All tasks in this board will be permanently deleted.")) return;
+    const onDelete = (boardId: string) => {
+        toast(
+            (t) => (
+                <div className="flex flex-col gap-4 bg-black text-white p-5 rounded-xl shadow-2xl border border-gray-800 min-w-[300px]">
+                    <p className="text-sm font-semibold">
+                        Are you sure? All tasks in this board will be permanently deleted.
+                    </p>
 
-        await db.transaction("rw", db.boards, db.boardMutations, async () => {
-            const board = await db.boards.get(boardId);
-            if (board?.syncStatus === "created") {
-                await db.boards.delete(boardId);
-                const pendingMutations = await db.boardMutations.where('boardId').equals(boardId).toArray();
-                const mutationIds = pendingMutations.map(m => m.id!);
-                await db.boardMutations.bulkDelete(mutationIds);
-            } else {
-                await db.boards.update(boardId, { syncStatus: "deleted" });
-                await db.boardMutations.add({
-                    action: "delete",
-                    boardId,
-                    timestamp: Date.now(),
-                });
-            }
-        });
-        triggerSyncIfOnline();
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={() => toast.dismiss(t.id)}
+                            className="px-4 py-2 text-xs font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg transition-all"
+                        >
+                            Cancel
+                        </button>
 
-        if (activeBoardId === boardId) {
-            const remaining = await db.boards.where("syncStatus").notEqual("deleted").toArray();
-            if (remaining.length > 0) onBoardSelect(remaining[0]._id);
-        }
+                        <button
+                            onClick={async () => {
+                                toast.dismiss(t.id);
+
+                                await db.transaction("rw", db.boards, db.boardMutations, async () => {
+                                    const board = await db.boards.get(boardId);
+
+                                    if (board?.syncStatus === "created") {
+                                        await db.boards.delete(boardId);
+
+                                        const pendingMutations = await db.boardMutations
+                                            .where("boardId")
+                                            .equals(boardId)
+                                            .toArray();
+
+                                        const mutationIds = pendingMutations.map((m) => m.id!);
+                                        await db.boardMutations.bulkDelete(mutationIds);
+                                    } else {
+                                        await db.boards.update(boardId, { syncStatus: "deleted" });
+
+                                        await db.boardMutations.add({
+                                            action: "delete",
+                                            boardId,
+                                            timestamp: Date.now(),
+                                        });
+                                    }
+                                });
+
+                                triggerSyncIfOnline();
+
+                                if (activeBoardId === boardId) {
+                                    const remaining = await db.boards
+                                        .where("syncStatus")
+                                        .notEqual("deleted")
+                                        .toArray();
+
+                                    if (remaining.length > 0) onBoardSelect(remaining[0]._id);
+                                }
+
+                                toast.success("Board deleted successfully");
+                            }}
+                            className="px-4 py-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            ),
+            { duration: Infinity, position: "top-center" }
+        );
     };
 
     const startEditing = (boardId: string, currentName: string) => {
@@ -124,13 +172,16 @@ export default function BoardManager({ isOpen, onClose, activeBoardId, onBoardSe
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             {sharingBoardId && (
                 <div className="absolute inset-0 z-[60] flex items-center justify-center p-4">
-                    {/* We will render ShareBoardModal here when we build it */}
                     <ShareBoardModal boardId={sharingBoardId} onClose={() => setSharingBoardId(null)} />
                 </div>
             )}
+
             <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
                 <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Manage Boards</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        Manage Boards
+                    </h3>
+
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
                         <XIcon className="w-5 h-5" />
                     </button>
@@ -142,12 +193,14 @@ export default function BoardManager({ isOpen, onClose, activeBoardId, onBoardSe
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Create New Board
                         </label>
+
                         <div className="flex gap-2">
                             <input
                                 {...register("name")}
                                 className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                 placeholder="E.g., Design Tasks"
                             />
+
                             <button
                                 type="submit"
                                 disabled={isSubmitting}
@@ -156,36 +209,63 @@ export default function BoardManager({ isOpen, onClose, activeBoardId, onBoardSe
                                 Add
                             </button>
                         </div>
+
                         {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>}
                     </form>
 
                     <div className="h-px bg-gray-200 dark:bg-gray-700 my-6"></div>
 
-                    {/* List Existing Boards */}
+                    {/* Boards */}
                     <div className="space-y-3">
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Your Boards</h4>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            Your Boards
+                        </h4>
+
                         {boards?.length === 0 ? (
                             <p className="text-sm text-gray-500">No boards created yet.</p>
                         ) : (
-                            boards?.map(board => (
-                                <div key={board._id}
-                                    className={`flex items-center justify-between p-3 rounded-lg border ${activeBoardId === board._id
-                                        ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20"
-                                        : "border-gray-200 dark:border-gray-700"
-                                        }`}
+                            boards?.map((board) => (
+                                <div
+                                    key={board._id}
+                                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                                        activeBoardId === board._id
+                                            ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20"
+                                            : "border-gray-200 dark:border-gray-700"
+                                    }`}
                                 >
                                     {editingId === board._id ? (
-                                        <form onSubmit={handleEditSubmit((data) => onUpdate(board._id, data))} className="flex-1 flex gap-2 w-full">
+                                        <form
+                                            onSubmit={handleEditSubmit((data) => onUpdate(board._id, data))}
+                                            className="flex-1 flex gap-2 w-full"
+                                        >
                                             <div className="flex-1">
                                                 <input
                                                     {...registerEdit("name")}
                                                     autoFocus
                                                     className="w-full px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                                 />
-                                                {editErrors.name && <p className="mt-1 text-[10px] text-red-500">{editErrors.name.message}</p>}
+
+                                                {editErrors.name && (
+                                                    <p className="mt-1 text-[10px] text-red-500">
+                                                        {editErrors.name.message}
+                                                    </p>
+                                                )}
                                             </div>
-                                            <button type="submit" className="text-xs font-medium text-indigo-600 hover:text-indigo-800">Save</button>
-                                            <button type="button" onClick={() => setEditingId(null)} className="text-xs font-medium text-gray-500 hover:text-gray-700">Cancel</button>
+
+                                            <button
+                                                type="submit"
+                                                className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                                            >
+                                                Save
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditingId(null)}
+                                                className="text-xs font-medium text-gray-500 hover:text-gray-700"
+                                            >
+                                                Cancel
+                                            </button>
                                         </form>
                                     ) : (
                                         <>
@@ -194,20 +274,42 @@ export default function BoardManager({ isOpen, onClose, activeBoardId, onBoardSe
                                                 onClick={() => onBoardSelect(board._id)}
                                             >
                                                 {board.name}
-                                                {activeBoardId === board._id && <span className="ml-2 text-[10px] text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded">Active</span>}
-                                                {board.syncStatus !== "synced" && <span className="ml-2 text-[10px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">Syncing...</span>}
+
+                                                {activeBoardId === board._id && (
+                                                    <span className="ml-2 text-[10px] text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded">
+                                                        Active
+                                                    </span>
+                                                )}
+
+                                                {board.syncStatus !== "synced" && (
+                                                    <span className="ml-2 text-[10px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">
+                                                        Syncing...
+                                                    </span>
+                                                )}
                                             </div>
+
                                             <div className="flex items-center gap-2">
-                                                {board.myRole === 'admin' && (
+                                                {board.myRole === "admin" && (
                                                     <>
-                                                        <button onClick={() => openShareModal(board._id)} className="text-gray-400 hover:text-green-600 ml-1">
+                                                        <button
+                                                            onClick={() => openShareModal(board._id)}
+                                                            className="text-gray-400 hover:text-green-600 ml-1"
+                                                        >
                                                             <CreateActivityIcon className="w-4 h-4" />
                                                         </button>
-                                                        <button onClick={() => startEditing(board._id, board.name)} className="text-gray-400 hover:text-indigo-600 ml-1">
+
+                                                        <button
+                                                            onClick={() => startEditing(board._id, board.name)}
+                                                            className="text-gray-400 hover:text-indigo-600 ml-1"
+                                                        >
                                                             <EditIcon className="w-4 h-4" />
                                                         </button>
+
                                                         {boards.length > 1 && (
-                                                            <button onClick={() => onDelete(board._id)} className="text-gray-400 hover:text-red-600 ml-1">
+                                                            <button
+                                                                onClick={() => onDelete(board._id)}
+                                                                className="text-gray-400 hover:text-red-600 ml-1"
+                                                            >
                                                                 <DeleteIcon className="w-4 h-4" />
                                                             </button>
                                                         )}
