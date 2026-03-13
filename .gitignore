@@ -1,0 +1,50 @@
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+
+# Env files
+.env
+
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Frontend specific
+/frontend/Basicauthreact/node_modules/
+/frontend/Basicauthreact/dist/
+/frontend/Basicauthreact/build/
+/frontend/Basicauthreact/.env
+
+# Backend specific
+/backend/basicauthbackend/node_modules/
+/backend/basicauthbackend/dist/
+/backend/basicauthbackend/build/
+/backend/basicauthbackend/.env
+
+# TypeScript
+*.tsbuildinfo
+
+# Misc
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Optional lock files
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
