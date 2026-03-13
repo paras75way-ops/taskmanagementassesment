@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
     DndContext,
     DragOverlay,
@@ -20,6 +20,8 @@ import ConflictHandling from "./ConflictHandling";
 import { useTheme } from "../../hooks/useTheme";
 import type { TaskStatus, LocalTask } from "../../types/task";
 import { queueTaskUpdate, queueRemoveDependency } from "../../lib/taskMutations";
+import { UndoProvider, useUndo } from "../../lib/undoManager";
+import ActivityLogPanel from "./ActivityLogPanel";
 
 const COLUMNS: TaskStatus[] = ["todo", "inprogress", "done"];
 
@@ -28,6 +30,14 @@ interface KanbanBoardProps {
 }
 
 export default function KanbanBoard({ boardId }: KanbanBoardProps) {
+    return (
+        <UndoProvider>
+            <KanbanBoardInner boardId={boardId} />
+        </UndoProvider>
+    );
+}
+
+function KanbanBoardInner({ boardId }: KanbanBoardProps) {
     const { theme, toggleTheme } = useTheme();
     const tasks = useLiveQuery(
         () => db.tasks.filter((t) => t.boardId === boardId && t.syncStatus !== "deleted").toArray(),
@@ -36,6 +46,20 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
 
     const [activeTask, setActiveTask] = useState<LocalTask | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showActivityLog, setShowActivityLog] = useState(false);
+
+    const { popUndo, canUndo } = useUndo();
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                e.preventDefault();
+                popUndo();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [popUndo]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -181,6 +205,32 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
                             </svg>
                         )}
                     </button>
+
+                    <button
+                        onClick={() => popUndo()}
+                        disabled={!canUndo}
+                        className={`p-2 rounded-lg transition-colors flex items-center gap-1 text-sm font-medium ${canUndo
+                                ? 'text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600'
+                                : 'text-gray-400 bg-gray-50 dark:text-gray-600 dark:bg-gray-800 cursor-not-allowed'
+                            }`}
+                        title="Undo (Ctrl+Z)"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                        </svg>
+                        Undo
+                    </button>
+
+                    <button
+                        onClick={() => setShowActivityLog(true)}
+                        className="p-2 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors flex items-center gap-1 text-sm font-medium"
+                        title="Activity Log"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Log
+                    </button>
                 </div>
                 <button
                     onClick={() => setShowCreateModal(true)}
@@ -225,6 +275,12 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
                 boardId={boardId}
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
+            />
+
+            <ActivityLogPanel
+                boardId={boardId}
+                isOpen={showActivityLog}
+                onClose={() => setShowActivityLog(false)}
             />
 
             <ConflictHandling />

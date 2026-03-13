@@ -45,3 +45,19 @@ export interface ConflictRecord {
     resolvedAt: number;
     message: string;
 }
+
+export type ActivityAction = "create" | "update" | "move" | "delete" | "dependency_add" | "dependency_remove";
+
+export interface ActivityRecord {
+    id?: number;
+    _id?: string;
+    boardId: string;
+    taskId: string;
+    taskTitle: string;
+    action: ActivityAction;
+    description: string;
+    snapshot: Record<string, unknown>;
+    userId: string;
+    createdAt: string;
+    syncStatus: "pending" | "synced";
+}

@@ -2,6 +2,7 @@ import { db } from "./db";
 import { store } from "../store";
 import { taskApi } from "../store/api/taskApi";
 import { boardApi } from "../store/api/boardApi";
+import { activityApi } from "../store/api/activityApi";
 import type { ITask, CreateTaskInput } from "../types/task";
 import type { IBoard, CreateBoardInput, UpdateBoardInput, IBoardMember } from "../types/board";
 
@@ -165,6 +166,31 @@ export async function pullData() {
       }
     }
     await Promise.all(blockerCleanups);
+
+    for (const board of serverBoards) {
+      const actResult = await store.dispatch(
+        activityApi.endpoints.getActivities.initiate(board._id, { forceRefetch: true })
+      );
+      if (!actResult.isError && actResult.data) {
+        for (const serverAct of actResult.data) {
+          const exists = await db.activities.where("_id").equals(serverAct._id).first();
+          if (!exists) {
+            await db.activities.add({
+              _id: serverAct._id,
+              boardId: serverAct.boardId,
+              taskId: serverAct.taskId,
+              taskTitle: serverAct.taskTitle,
+              action: serverAct.action as any,
+              description: serverAct.description,
+              snapshot: serverAct.snapshot,
+              userId: serverAct.userId,
+              createdAt: serverAct.createdAt,
+              syncStatus: "synced",
+            });
+          }
+        }
+      }
+    }
 
   } catch (error) {
     console.error("Failed to pull data:", error);
@@ -375,6 +401,20 @@ export async function processMutations() {
     }
 
     await pullData();
+
+    const pendingActivities = await db.activities.where("syncStatus").equals("pending").toArray();
+    for (const activity of pendingActivities) {
+      try {
+        const { id: _localId, syncStatus: _s, ...payload } = activity;
+        await store.dispatch(activityApi.endpoints.createActivity.initiate(payload as any)).unwrap();
+        if (activity.id) {
+          await db.activities.update(activity.id, { syncStatus: "synced" });
+        }
+      } catch (err) {
+        console.error("Failed to sync activity:", err);
+      }
+    }
+
   } finally {
     isProcessingMutations = false;
   }

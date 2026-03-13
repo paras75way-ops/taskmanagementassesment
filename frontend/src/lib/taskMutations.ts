@@ -1,5 +1,5 @@
 import { db } from "./db";
-import type { UpdateTaskInput } from "../types/task";
+import type { UpdateTaskInput, ActivityAction, ActivityRecord } from "../types/task";
 import { processMutations } from "./sync";
 
 export const triggerSyncIfOnline = () => {
@@ -7,6 +7,32 @@ export const triggerSyncIfOnline = () => {
         processMutations().catch(console.error);
     }
 };
+
+export async function logActivity(
+    boardId: string,
+    taskId: string,
+    taskTitle: string,
+    action: ActivityAction,
+    description: string,
+    snapshot: Record<string, unknown>
+): Promise<void> {
+    const activity: ActivityRecord = {
+        boardId,
+        taskId,
+        taskTitle,
+        action,
+        description,
+        snapshot,
+        userId: "local",
+        createdAt: new Date().toISOString(),
+        syncStatus: "pending",
+    };
+
+    await db.activities.add(activity);
+
+    // Dispatch a custom event so the React UndoProvider can catch it
+    window.dispatchEvent(new CustomEvent('activityLogged', { detail: activity }));
+}
 
 export async function queueTaskCreate(boardId: string, data: { title: string; description?: string; status?: "todo" | "inprogress" | "done"; position: number; targetDate?: string }): Promise<string> {
     const tempId = `temp_${Date.now()}`;
@@ -18,7 +44,7 @@ export async function queueTaskCreate(boardId: string, data: { title: string; de
         status: data.status || "todo",
         position: data.position,
         targetDate: data.targetDate,
-        userId: "local", // will be overridden by server
+        userId: "local",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         syncStatus: "created" as const,
@@ -34,13 +60,17 @@ export async function queueTaskCreate(boardId: string, data: { title: string; de
         });
     });
 
+    await logActivity(boardId, tempId, data.title, "create", `Created task "${data.title}"`, {});
+
     triggerSyncIfOnline();
     return tempId;
 }
 
 export async function queueTaskUpdate(taskId: string, payload: Partial<UpdateTaskInput> & { boardId?: string }): Promise<void> {
+    const existingTask = await db.tasks.get(taskId);
+    const snapshot = existingTask ? { ...existingTask } : {};
+
     await db.transaction("rw", db.tasks, db.mutations, async () => {
-        const existingTask = await db.tasks.get(taskId);
         if (existingTask) {
             await db.tasks.update(taskId, {
                 ...payload,
@@ -56,13 +86,33 @@ export async function queueTaskUpdate(taskId: string, payload: Partial<UpdateTas
         });
     });
 
+    if (existingTask) {
+        let action: ActivityAction = "update";
+        let description = `Updated task "${existingTask.title}"`;
+
+        if (payload.status && payload.status !== existingTask.status) {
+            action = "move";
+            description = `Moved "${existingTask.title}" to ${payload.status}`;
+        }
+
+        await logActivity(
+            payload.boardId || existingTask.boardId,
+            taskId,
+            existingTask.title,
+            action,
+            description,
+            snapshot
+        );
+    }
+
     triggerSyncIfOnline();
 }
 
 export async function queueTaskDelete(taskId: string): Promise<void> {
-    await db.transaction('rw', db.tasks, db.mutations, async () => {
-        const task = await db.tasks.get(taskId);
+    const task = await db.tasks.get(taskId);
+    const snapshot = task ? { ...task } : {};
 
+    await db.transaction('rw', db.tasks, db.mutations, async () => {
         const allTasks = await db.tasks.toArray();
         for (const t of allTasks) {
             if (t.blockedBy && t.blockedBy.includes(taskId)) {
@@ -85,6 +135,17 @@ export async function queueTaskDelete(taskId: string): Promise<void> {
             });
         }
     });
+
+    if (task) {
+        await logActivity(
+            task.boardId,
+            taskId,
+            task.title,
+            "delete",
+            `Deleted task "${task.title}"`,
+            snapshot
+        );
+    }
 
     triggerSyncIfOnline();
 }
@@ -121,6 +182,9 @@ export async function queueAddDependency(
     const task = await db.tasks.get(taskId);
     if (!task) return;
 
+    const blockerTask = await db.tasks.get(blockerTaskId);
+    const snapshot = { ...task };
+
     const currentBlockedBy = task.blockedBy ?? [];
     if (currentBlockedBy.includes(blockerTaskId)) return;
 
@@ -132,6 +196,15 @@ export async function queueAddDependency(
     }
 
     await queueTaskUpdate(taskId, { blockedBy: newBlockedBy });
+
+    await logActivity(
+        task.boardId,
+        taskId,
+        task.title,
+        "dependency_add",
+        `Added blocker "${blockerTask?.title || blockerTaskId}" to "${task.title}"`,
+        snapshot
+    );
 }
 
 export async function queueRemoveDependency(
@@ -141,8 +214,20 @@ export async function queueRemoveDependency(
     const task = await db.tasks.get(taskId);
     if (!task) return;
 
+    const blockerTask = await db.tasks.get(blockerTaskId);
+    const snapshot = { ...task };
+
     const currentBlockedBy = task.blockedBy ?? [];
     const newBlockedBy = currentBlockedBy.filter(id => id !== blockerTaskId);
 
     await queueTaskUpdate(taskId, { blockedBy: newBlockedBy });
+
+    await logActivity(
+        task.boardId,
+        taskId,
+        task.title,
+        "dependency_remove",
+        `Removed blocker "${blockerTask?.title || blockerTaskId}" from "${task.title}"`,
+        snapshot
+    );
 }

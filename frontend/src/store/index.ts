@@ -5,6 +5,7 @@ import errorReducer from "./slices/errorSlice";
 import { authApi } from "./api/authApi";
 import { taskApi } from "./api/taskApi";
 import { boardApi } from "./api/boardApi";
+import { activityApi } from "./api/activityApi";
 
 import { rtkQueryErrorMiddleware } from "./errormiddleware";
 
@@ -16,6 +17,7 @@ export const store = configureStore({
     [authApi.reducerPath]: authApi.reducer,
     [taskApi.reducerPath]: taskApi.reducer,
     [boardApi.reducerPath]: boardApi.reducer,
+    [activityApi.reducerPath]: activityApi.reducer,
   },
 
   middleware: (getDefaultMiddleware) =>
@@ -23,6 +25,7 @@ export const store = configureStore({
       .concat(authApi.middleware)
       .concat(taskApi.middleware)
       .concat(boardApi.middleware)
+      .concat(activityApi.middleware)
       .concat(rtkQueryErrorMiddleware),
 });
 

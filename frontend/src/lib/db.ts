@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { LocalTask, MutationRecord, ConflictRecord } from "../types/task";
+import type { LocalTask, MutationRecord, ConflictRecord, ActivityRecord } from "../types/task";
 import type { LocalBoard, BoardMutationRecord, IBoardMember } from "../types/board";
 
 export class KanbanDB extends Dexie {
@@ -10,6 +10,7 @@ export class KanbanDB extends Dexie {
     boards!: Table<LocalBoard, string>;
     boardMutations!: Table<BoardMutationRecord, number>;
     boardMembers!: Table<IBoardMember, string>;
+    activities!: Table<ActivityRecord, number>;
 
     constructor() {
         super("KanbanDB");
@@ -35,6 +36,10 @@ export class KanbanDB extends Dexie {
 
         this.version(5).stores({
             tasks: "_id, boardId, status, position, syncStatus, *blockedBy",
+        });
+
+        this.version(6).stores({
+            activities: "++id, _id, boardId, taskId, createdAt, syncStatus",
         });
     }
 }
